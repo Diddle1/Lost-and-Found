@@ -49,7 +49,7 @@ def search_files(target, file_or_folder, output_file):
                     with open(file_path, 'r') as file:
                         for line_num, line in enumerate(file, start=1):
                             if target in line:
-                                out_file.write(f"{file_path} (Line {line_num}): {line}")
+                                out_file.write(f"{file_path} (Line {line_num}): {line}\n")
             except Exception as e:
                 print(f"Error reading {file_path}: {e}")
 
