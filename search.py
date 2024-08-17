@@ -23,7 +23,7 @@ def search_files(target, file_or_folder, output_file):
         return
 
     # Define the file extensions to search
-    valid_extensions = ('.txt', '.py', '.pdf', '.html', '.xml', '.kt', '.java', '.smali', '.json')
+    valid_extensions = ('.txt', '.py', '.pdf', '.html', '.xml', '.kt', '.java', '.smali', '.json', '.properties')
 
     # Determine if we're searching a single file or a folder
     if os.path.isfile(file_or_folder):
