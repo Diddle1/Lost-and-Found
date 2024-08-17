@@ -25,16 +25,18 @@ def search_files(target, file_or_folder, output_file):
     # Define the file extensions to search
     valid_extensions = ('.txt', '.py', '.pdf', '.html', '.xml', '.kt', '.java', '.smali', '.json', '.properties')
 
-    # Determine if we're searching a single file or a folder
+    # Initialize a list to store files to search
+    files_to_search = []
+
+    # If the path is a file, add it directly
     if os.path.isfile(file_or_folder):
-        files_to_search = [file_or_folder]
+        files_to_search.append(file_or_folder)
     elif os.path.isdir(file_or_folder):
-        # Get all relevant files in the folder
-        files_to_search = [
-            os.path.join(file_or_folder, f)
-            for f in os.listdir(file_or_folder)
-            if f.endswith(valid_extensions)
-        ]
+        # Use os.walk to recursively traverse directories
+        for root, _, files in os.walk(file_or_folder):
+            for file in files:
+                if file.endswith(valid_extensions):
+                    files_to_search.append(os.path.join(root, file))
     else:
         print(f"Error: {file_or_folder} is neither a file nor a directory.")
         return
