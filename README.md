@@ -6,7 +6,7 @@ Works with .txt, .pdf, .py, .html, .xml, .java, .smali files to help locate spec
 
 1. **Clone the repository:**
 
-   git clone
+   git clone https://github.com/Diddle1/Lost-and-Found.git
 
 2. **Navigate to the project directory:**
 
@@ -15,6 +15,10 @@ Works with .txt, .pdf, .py, .html, .xml, .java, .smali files to help locate spec
 3. **Install the required packages:**
 
    pip install -r requirements.txt
+   
+4. **Permissions:**
+
+   chmod 777 LostandFound
 
 ## Usage
 
