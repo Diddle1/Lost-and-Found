@@ -2,6 +2,7 @@ import os
 import threading
 from queue import Queue
 from PyPDF2 import PdfReader
+import mmap
 
 # Lock for thread-safe progress updates
 progress_lock = threading.Lock()
@@ -32,14 +33,33 @@ def search_text_file(file_path, target, results):
         print(f"Error reading {file_path}: {e}")
 
 
+# Function to search within a large text-based file using mmap
+def search_large_file(file_path, target, results):
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
+            mmapped_file = mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ)
+            position = 0
+
+            while position < len(mmapped_file):
+                chunk = mmapped_file[position:position + 4096]  # Read 4KB chunks
+                if target in chunk.decode('utf-8', errors='ignore'):
+                    results.append(f"Found in {file_path} at position {position}")
+                position += 4096
+
+    except Exception as e:
+        print(f"Error reading {file_path}: {e}")
+
+
 # Worker function for threads
-def worker(queue, target, results, total_files):
+def worker(queue, target, results, total_files, large_files=False):
     global processed_files
     while not queue.empty():
         file_path = queue.get()
         
         if file_path.endswith('.pdf'):
             search_pdf(file_path, target, results)
+        elif large_files and os.path.getsize(file_path) > 100 * 1024 * 1024:  # Check if file is larger than 100MB
+            search_large_file(file_path, target, results)  # Use mmap for large files
         else:
             search_text_file(file_path, target, results)
         
@@ -53,7 +73,7 @@ def worker(queue, target, results, total_files):
 
 
 # Function to search files using multiple threads
-def search_files(target, file_or_folder, output_file, num_threads=4):
+def search_files(target, file_or_folder, output_file, num_threads=4, large_files=False):
     global processed_files
     valid_extensions = ('.txt', '.py', '.pdf', '.html', '.xml', '.kt', '.java', '.smali', '.json', '.properties')
 
@@ -85,7 +105,7 @@ def search_files(target, file_or_folder, output_file, num_threads=4):
 
     # Start threads
     for _ in range(min(num_threads, total_files)):
-        thread = threading.Thread(target=worker, args=(queue, target, results, total_files))
+        thread = threading.Thread(target=worker, args=(queue, target, results, total_files, large_files))
         thread.start()
         threads.append(thread)
 
@@ -98,4 +118,5 @@ def search_files(target, file_or_folder, output_file, num_threads=4):
         out_file.writelines(results)
 
     print("\nSearch complete. Results written to", output_file)
+
 
