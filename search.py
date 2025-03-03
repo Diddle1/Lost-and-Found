@@ -1,65 +1,82 @@
 import os
+import threading
+from queue import Queue
 from PyPDF2 import PdfReader
 
-def search_pdf(file_path, target, out_file):
+
+# Function to search within a PDF file
+def search_pdf(file_path, target, results):
     try:
         with open(file_path, 'rb') as file:
             reader = PdfReader(file)
             for page_num, page in enumerate(reader.pages):
                 text = page.extract_text()
                 if text and target in text:
-                    out_file.write(f"Found in {file_path} (Page {page_num + 1}):\n{text}\n")
+                    results.append(f"Found in {file_path} (Page {page_num + 1}):\n{text}\n")
     except Exception as e:
         print(f"Error reading {file_path}: {e}")
 
-def search_files(target, file_or_folder, output_file):
-    # Normalize the path to handle different OS
-    file_or_folder = os.path.normpath(file_or_folder)
-    output_file = os.path.normpath(output_file)
 
-    # Check if the file or directory exists
-    if not os.path.exists(file_or_folder):
-        print(f"Error: The path '{file_or_folder}' does not exist.")
-        return
+# Function to search within a text-based file
+def search_text_file(file_path, target, results):
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            for line_num, line in enumerate(file, start=1):
+                if target in line:
+                    results.append(f"{file_path} (Line {line_num}): {line}")
+    except Exception as e:
+        print(f"Error reading {file_path}: {e}")
 
-    # Define the file extensions to search
+
+# Worker function for threads
+def worker(queue, target, results):
+    while not queue.empty():
+        file_path = queue.get()
+        if file_path.endswith('.pdf'):
+            search_pdf(file_path, target, results)
+        else:
+            search_text_file(file_path, target, results)
+        queue.task_done()
+
+
+# Function to search files using multiple threads
+def search_files(target, file_or_folder, output_file, num_threads=4):
     valid_extensions = ('.txt', '.py', '.pdf', '.html', '.xml', '.kt', '.java', '.smali', '.json', '.properties')
 
-    # Initialize a list to store files to search
+    # Collect files to search
     files_to_search = []
-
-    # If the path is a file, add it directly
     if os.path.isfile(file_or_folder):
         files_to_search.append(file_or_folder)
     elif os.path.isdir(file_or_folder):
-        # Use os.walk to recursively traverse directories
         for root, _, files in os.walk(file_or_folder):
             for file in files:
                 if file.endswith(valid_extensions):
                     files_to_search.append(os.path.join(root, file))
-    else:
-        print(f"Error: {file_or_folder} is neither a file nor a directory.")
+
+    if not files_to_search:
+        print("No valid files found for searching.")
         return
 
-    total_files = len(files_to_search)
+    # Create queue and add files
+    queue = Queue()
+    for file in files_to_search:
+        queue.put(file)
 
-    # Open the output file in write mode
-    with open(output_file, 'w') as out_file:
-        for index, file_path in enumerate(files_to_search):
-            try:
-                if file_path.endswith('.pdf'):
-                    search_pdf(file_path, target, out_file)
-                else:
-                    # Open each file and search for the target string
-                    with open(file_path, 'r', encoding='utf-8') as file:
-                        for line_num, line in enumerate(file, start=1):
-                            if target in line:
-                                out_file.write(f"{file_path} (Line {line_num}): {line}\n")
-            except Exception as e:
-                print(f"Error reading {file_path}: {e}")
+    results = []
+    threads = []
 
-            # Print progress
-            percent_complete = (index + 1) / total_files * 100
-            print(f"Progress: {percent_complete:.2f}%")
+    # Start threads
+    for _ in range(min(num_threads, len(files_to_search))):
+        thread = threading.Thread(target=worker, args=(queue, target, results))
+        thread.start()
+        threads.append(thread)
+
+    # Wait for threads to complete
+    for thread in threads:
+        thread.join()
+
+    # Write results to output file
+    with open(output_file, 'w', encoding='utf-8') as out_file:
+        out_file.writelines(results)
 
     print(f"Search complete. Results written to {output_file}")
