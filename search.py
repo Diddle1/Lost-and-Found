@@ -3,6 +3,10 @@ import threading
 from queue import Queue
 from PyPDF2 import PdfReader
 
+# Lock for thread-safe progress updates
+progress_lock = threading.Lock()
+processed_files = 0  # Global counter for processed files
+
 
 # Function to search within a PDF file
 def search_pdf(file_path, target, results):
@@ -29,18 +33,28 @@ def search_text_file(file_path, target, results):
 
 
 # Worker function for threads
-def worker(queue, target, results):
+def worker(queue, target, results, total_files):
+    global processed_files
     while not queue.empty():
         file_path = queue.get()
+        
         if file_path.endswith('.pdf'):
             search_pdf(file_path, target, results)
         else:
             search_text_file(file_path, target, results)
+        
         queue.task_done()
+
+        # Update progress
+        with progress_lock:
+            processed_files += 1
+            percentage = (processed_files / total_files) * 100
+            print(f"Progress: {processed_files}/{total_files} ({percentage:.2f}%)", end='\r')
 
 
 # Function to search files using multiple threads
 def search_files(target, file_or_folder, output_file, num_threads=4):
+    global processed_files
     valid_extensions = ('.txt', '.py', '.pdf', '.html', '.xml', '.kt', '.java', '.smali', '.json', '.properties')
 
     # Collect files to search
@@ -53,7 +67,8 @@ def search_files(target, file_or_folder, output_file, num_threads=4):
                 if file.endswith(valid_extensions):
                     files_to_search.append(os.path.join(root, file))
 
-    if not files_to_search:
+    total_files = len(files_to_search)
+    if total_files == 0:
         print("No valid files found for searching.")
         return
 
@@ -65,9 +80,12 @@ def search_files(target, file_or_folder, output_file, num_threads=4):
     results = []
     threads = []
 
+    # Reset processed files counter
+    processed_files = 0
+
     # Start threads
-    for _ in range(min(num_threads, len(files_to_search))):
-        thread = threading.Thread(target=worker, args=(queue, target, results))
+    for _ in range(min(num_threads, total_files)):
+        thread = threading.Thread(target=worker, args=(queue, target, results, total_files))
         thread.start()
         threads.append(thread)
 
@@ -79,4 +97,5 @@ def search_files(target, file_or_folder, output_file, num_threads=4):
     with open(output_file, 'w', encoding='utf-8') as out_file:
         out_file.writelines(results)
 
-    print(f"Search complete. Results written to {output_file}")
+    print("\nSearch complete. Results written to", output_file)
+
