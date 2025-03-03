@@ -1,4 +1,3 @@
-# start_screen.py
 from colorama import Fore, Style, init
 import search  # Importing the search module
 
@@ -35,12 +34,13 @@ while True:
         file_or_folder = input(Fore.GREEN + "Enter the file or folder to search in: ")
         output_file = input(Fore.GREEN + "Enter the output file name: ")
         num_threads = input(Fore.GREEN + "Enter the number of threads (Default: 4): ")
+        large_files = input(Fore.GREEN + "Search large files using mmap? (y/n): ").lower() == 'y'
 
         if target == '99' or file_or_folder == '99' or output_file == '99':
             continue
 
         num_threads = int(num_threads) if num_threads.isdigit() else 4  # Default to 4 threads
-        search.search_files(target, file_or_folder, output_file, num_threads)
+        search.search_files(target, file_or_folder, output_file, num_threads, large_files)
 
     elif choice == '2':
         print(Fore.CYAN + r"""How to Use:
@@ -68,3 +68,4 @@ Multithreading:
 
     else:
         print(Fore.RED + "Invalid choice. Please select 1, 2, or 99 to exit.")
+
